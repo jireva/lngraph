@@ -3,9 +3,11 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 
+	"github.com/cheggaaa/pb"
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 )
 
@@ -53,33 +55,44 @@ func importGraph(graphFile string, conn bolt.Conn) error {
 		return err
 	}
 
+	fmt.Println("⚡ Importing nodes")
+	bar := pb.New(len(graph.LightningNodes))
+	bar.SetMaxWidth(80)
+	bar.Start()
 	for _, lnode := range graph.LightningNodes {
 		err = lnode.create(conn)
 		if err != nil {
 			log.Fatal(err)
 		}
+		bar.Increment()
 	}
+	bar.Finish()
 
 	if err := createLightningNodeIndexes(conn); err != nil {
 		log.Fatal(err)
 	}
 
+	fmt.Println("⚡ Importing channels")
+	bar = pb.New(len(graph.Channels))
+	bar.SetMaxWidth(80)
+	bar.Start()
 	for _, channel := range graph.Channels {
 		err = channel.create(conn)
 		if err != nil {
 			log.Fatal(err)
 		}
-	}
 
-	if err := createChannelIndexes(conn); err != nil {
-		log.Fatal(err)
-	}
-
-	for _, channel := range graph.Channels {
 		err = channel.createRelationships(conn)
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		bar.Increment()
+	}
+	bar.Finish()
+
+	if err := createChannelIndexes(conn); err != nil {
+		log.Fatal(err)
 	}
 
 	return nil
