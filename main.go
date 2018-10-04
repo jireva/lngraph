@@ -10,6 +10,7 @@ import (
 func main() {
 	neo4jURL := flag.String("url", "bolt://localhost:7687", "neo4j url")
 	graphFile := flag.String("graph", "", "a file with the output of: lncli describegraph")
+	noDelete := flag.Bool("nodelete", false, "start without deleting all previous data")
 	flag.Parse()
 
 	conn, err := newNeo4jConnection(*neo4jURL)
@@ -18,7 +19,17 @@ func main() {
 	}
 	defer conn.Close()
 
-	if err := importGraph(*graphFile, conn); err != nil {
+	if !*noDelete {
+		if err := deleteAll(conn); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if err := createIndexes(conn); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := importGraph(conn, *graphFile); err != nil {
 		log.Fatal(err)
 	}
 }

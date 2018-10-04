@@ -10,7 +10,31 @@ import (
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 )
 
-func importGraph(graphFile string, conn bolt.Conn) error {
+const (
+	deleteAllQuery = "MATCH (n) DETACH DELETE n"
+)
+
+func deleteAll(conn bolt.Conn) error {
+	fmt.Println("⚡ Deleting existing data")
+	_, err := conn.ExecNeo(deleteAllQuery, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func createIndexes(conn bolt.Conn) error {
+	if err := createLightningNodeIndexes(conn); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := createChannelIndexes(conn); err != nil {
+		log.Fatal(err)
+	}
+	return nil
+}
+
+func importGraph(conn bolt.Conn, graphFile string) error {
 	if graphFile == "" {
 		return nil
 	}
@@ -42,10 +66,6 @@ func importGraph(graphFile string, conn bolt.Conn) error {
 	}
 	bar.Finish()
 
-	if err := createLightningNodeIndexes(conn); err != nil {
-		log.Fatal(err)
-	}
-
 	fmt.Println("⚡ Importing channels")
 	bar = pb.New(len(graph.Channels))
 	bar.SetMaxWidth(80)
@@ -64,10 +84,6 @@ func importGraph(graphFile string, conn bolt.Conn) error {
 		bar.Increment()
 	}
 	bar.Finish()
-
-	if err := createChannelIndexes(conn); err != nil {
-		log.Fatal(err)
-	}
 
 	return nil
 }
