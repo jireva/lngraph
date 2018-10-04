@@ -1,18 +1,29 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/json"
+	"flag"
+	"io/ioutil"
 	"log"
-	"os"
 
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 )
 
-var (
-	neo4jURL = "bolt://localhost:7687"
-)
+func main() {
+	neo4jURL := flag.String("url", "bolt://localhost:7687", "neo4j url")
+	graphFile := flag.String("graph", "", "a file with the output of: lncli describegraph")
+	flag.Parse()
+
+	conn, err := newNeo4jConnection(*neo4jURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	if err := importGraph(*graphFile, conn); err != nil {
+		log.Fatal(err)
+	}
+}
 
 func newNeo4jConnection(url string) (bolt.Conn, error) {
 	driver := bolt.NewDriver()
@@ -23,27 +34,24 @@ func newNeo4jConnection(url string) (bolt.Conn, error) {
 	return conn, nil
 }
 
-func main() {
-	// read from STDIN
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(bufio.NewReader(os.Stdin))
+func importGraph(graphFile string, conn bolt.Conn) error {
+	if graphFile == "" {
+		return nil
+	}
 
-	// json unmarshal
+	graphContent, err := ioutil.ReadFile(graphFile)
+	if err != nil {
+		return err
+	}
+
 	var graph struct {
 		LightningNodes []LightningNode `json:"nodes"`
 		Channels       []Channel       `json:"edges"`
 	}
-	err := json.Unmarshal(buf.Bytes(), &graph)
+	err = json.Unmarshal(graphContent, &graph)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-
-	// connect to neo4j
-	conn, err := newNeo4jConnection(neo4jURL)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer conn.Close()
 
 	// create and index lightning nodes
 	for _, lnode := range graph.LightningNodes {
@@ -78,4 +86,6 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+
+	return nil
 }
