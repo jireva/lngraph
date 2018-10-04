@@ -65,6 +65,7 @@ func (c Channel) create(conn bolt.Conn) error {
 		"lastUpdate": c.LastUpdate,
 		"capacity":   c.Capacity,
 	}
+
 	_, err := conn.ExecNeo(createChannelQuery, values)
 	if err != nil {
 		return err
@@ -98,6 +99,7 @@ func (c Channel) createRelationships(conn bolt.Conn) error {
 		"node1FeeRateMilliMsat": c.Node1Policy.FeeRateMilliMsat,
 		"node1Disabled":         c.Node1Policy.Disabled,
 	}
+
 	node2Values := map[string]interface{}{
 		"channelID":             c.ChannelID,
 		"node2Pub":              c.Node2Pub,
@@ -107,6 +109,7 @@ func (c Channel) createRelationships(conn bolt.Conn) error {
 		"node2FeeRateMilliMsat": c.Node2Policy.FeeRateMilliMsat,
 		"node2Disabled":         c.Node2Policy.Disabled,
 	}
+
 	_, err := conn.ExecPipeline([]string{
 		relChannelNode1Query,
 		relChannelNode2Query,

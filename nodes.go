@@ -34,6 +34,7 @@ func (lnode LightningNode) create(conn bolt.Conn) error {
 		"lastUpdate": lnode.LastUpdate,
 		"color":      lnode.Color,
 	}
+
 	_, err := conn.ExecNeo(createLightningNodeQuery, values)
 	if err != nil {
 		return err

@@ -48,24 +48,22 @@ func importGraph(graphFile string, conn bolt.Conn) error {
 		LightningNodes []LightningNode `json:"nodes"`
 		Channels       []Channel       `json:"edges"`
 	}
-	err = json.Unmarshal(graphContent, &graph)
-	if err != nil {
+
+	if err := json.Unmarshal(graphContent, &graph); err != nil {
 		return err
 	}
 
-	// create and index lightning nodes
 	for _, lnode := range graph.LightningNodes {
 		err = lnode.create(conn)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
-	err = createLightningNodeIndexes(conn)
-	if err != nil {
+
+	if err := createLightningNodeIndexes(conn); err != nil {
 		log.Fatal(err)
 	}
 
-	// create channels
 	for _, channel := range graph.Channels {
 		err = channel.create(conn)
 		if err != nil {
@@ -73,13 +71,10 @@ func importGraph(graphFile string, conn bolt.Conn) error {
 		}
 	}
 
-	// create channel indexes
-	err = createChannelIndexes(conn)
-	if err != nil {
+	if err := createChannelIndexes(conn); err != nil {
 		log.Fatal(err)
 	}
 
-	// create channel relationships
 	for _, channel := range graph.Channels {
 		err = channel.createRelationships(conn)
 		if err != nil {
