@@ -8,7 +8,9 @@ const (
 	indexLightningNodePubKeyQuery = "CREATE INDEX ON :Node(PubKey)"
 	indexLightningNodeAliasQuery  = "CREATE INDEX ON :Node(Alias)"
 	indexChannelIDQuery           = "CREATE INDEX ON :Channel(ChannelID)"
-	indexCapacityQuery            = "CREATE INDEX ON :Channel(Capacity)"
+	indexChannelCapacityQuery     = "CREATE INDEX ON :Channel(Capacity)"
+	indexChannelPointQuery        = "CREATE INDEX ON :Channel(ChanPoint)"
+	indexTransactionHashQuery     = "CREATE INDEX ON :Transaction(TxHash)"
 )
 
 // CreateIndexes creates neo4j indexes for all lighning resources.
@@ -20,6 +22,8 @@ func CreateIndexes(conn bolt.Conn) ([]bolt.Result, error) {
 		indexLightningNodePubKeyQuery,
 		indexLightningNodeAliasQuery,
 		indexChannelIDQuery,
-		indexCapacityQuery,
-	}, nil, nil, nil, nil)
+		indexChannelCapacityQuery,
+		indexChannelPointQuery,
+		indexTransactionHashQuery,
+	}, nil, nil, nil, nil, nil, nil)
 }

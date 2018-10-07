@@ -50,3 +50,20 @@ func ImportChannels(conn bolt.Conn, channels ln.Channels, counter chan int) erro
 	close(counter)
 	return nil
 }
+
+// ImportTransactions imports blockchain transactions into neo4j.
+func ImportTransactions(conn bolt.Conn, txs []ln.Transaction, counter chan int) error {
+	for i, tx := range txs {
+		if _, err := CreateTransaction(conn, tx); err != nil {
+			return err
+		}
+
+		if _, err := CreateTransactionChannelRelationship(conn, tx); err != nil {
+			return err
+		}
+
+		counter <- i
+	}
+	close(counter)
+	return nil
+}

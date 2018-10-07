@@ -16,6 +16,7 @@ import (
 func main() {
 	neo4jURL := flag.String("url", "bolt://localhost:7687", "neo4j url")
 	graphFile := flag.String("graph", "", "a file with the output of: lncli describegraph")
+	chaintxnsFile := flag.String("chaintxns", "", "a file with the output of: lncli listchaintxns")
 	noDelete := flag.Bool("nodelete", false, "start without deleting all previous data")
 	flag.Parse()
 
@@ -36,8 +37,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := importAll(conn, *graphFile); err != nil {
-		log.Fatal(err)
+	if *graphFile != "" {
+		if err := importGraph(conn, *graphFile); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if *chaintxnsFile != "" {
+		if err := importTransactions(conn, *chaintxnsFile); err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -51,12 +60,8 @@ func newNeo4jConnection(url string) (bolt.Conn, error) {
 	return conn, nil
 }
 
-// importAll reads source data files and provides them to all neo4j importers.
-func importAll(conn bolt.Conn, graphFile string) error {
-	if graphFile == "" {
-		return nil
-	}
-
+// importGraph reads graph data from a file and provides it to the neo4j importer.
+func importGraph(conn bolt.Conn, graphFile string) error {
 	graphContent, err := ioutil.ReadFile(graphFile)
 	if err != nil {
 		return err
@@ -89,6 +94,36 @@ func importAll(conn bolt.Conn, graphFile string) error {
 	bar.Start()
 	c = make(chan int)
 	go neo4j.ImportChannels(conn, graph.Channels, c)
+	for {
+		_, ok := <-c
+		if !ok {
+			break
+		}
+		bar.Increment()
+	}
+	bar.Finish()
+
+	return nil
+}
+
+// importTransactions reads chain transactions data from a file and provides
+// it to the neo4j importer.
+func importTransactions(conn bolt.Conn, chaintxnsFile string) error {
+	transactionsContent, err := ioutil.ReadFile(chaintxnsFile)
+	if err != nil {
+		return err
+	}
+
+	var txs ln.Transactions
+	if err := json.Unmarshal(transactionsContent, &txs); err != nil {
+		return err
+	}
+
+	fmt.Println("⚡ Importing chain transactions")
+	bar := pb.New(len(txs.Transactions)).SetMaxWidth(80)
+	bar.Start()
+	c := make(chan int)
+	go neo4j.ImportTransactions(conn, txs.Transactions, c)
 	for {
 		_, ok := <-c
 		if !ok {
