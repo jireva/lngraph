@@ -1,7 +1,8 @@
-package main
+package neo4j
 
 import (
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
+	"github.com/xsb/lngraph/ln"
 )
 
 const (
@@ -31,34 +32,10 @@ const (
 		Node2FeeRateMilliMsat: {node2FeeRateMilliMsat},
 		Node2Disabled: {node2Disabled}
 	} ]->(c)`
-
-	indexChannelIDQuery = "CREATE INDEX ON :Channel(ChannelID)"
-	indexCapacityQuery  = "CREATE INDEX ON :Channel(Capacity)"
 )
 
-// Channel represents a Lightning Network channel.
-type Channel struct {
-	ChannelID   uint64        `json:"channel_id,string"`
-	ChanPoint   string        `json:"chan_point"`
-	LastUpdate  uint32        `json:"last_update"`
-	Node1Pub    string        `json:"node1_pub"`
-	Node2Pub    string        `json:"node2_pub"`
-	Capacity    int64         `json:"capacity,string"`
-	Node1Policy RoutingPolicy `json:"node1_policy"`
-	Node2Policy RoutingPolicy `json:"node2_policy"`
-}
-
-// RoutingPolicy represents a node policy in a lightning channel.
-type RoutingPolicy struct {
-	TimeLockDelta    uint32 `json:"time_lock_delta"`
-	MinHtlc          int64  `json:"min_htlc,string"`
-	FeeBaseMsat      int64  `json:"fee_base_msat,string"`
-	FeeRateMilliMsat int64  `json:"fee_rate_milli_msat,string"`
-	Disabled         bool   `json:"disabled"`
-}
-
-// create writes a lightning channel resource in neo4j.
-func (c Channel) create(conn bolt.Conn) error {
+// CreateChannel writes a lightning channel resource into neo4j.
+func CreateChannel(conn bolt.Conn, c ln.Channel) error {
 	values := map[string]interface{}{
 		"channelID":  c.ChannelID,
 		"chainPoint": c.ChanPoint,
@@ -74,22 +51,9 @@ func (c Channel) create(conn bolt.Conn) error {
 	return nil
 }
 
-// createChannelIndexes indexes lightning channels.
-func createChannelIndexes(conn bolt.Conn) error {
-	_, err := conn.ExecPipeline([]string{
-		indexChannelIDQuery,
-		indexCapacityQuery,
-	}, nil, nil)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// createRelationships creates relationships between a lightning channel and
+// CreateChannelNodeRelationships creates relationships between a lightning channel and
 // its nodes.
-func (c Channel) createRelationships(conn bolt.Conn) error {
+func CreateChannelNodeRelationships(conn bolt.Conn, c ln.Channel) error {
 	node1Values := map[string]interface{}{
 		"channelID":             c.ChannelID,
 		"node1Pub":              c.Node1Pub,
