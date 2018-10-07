@@ -15,16 +15,11 @@ const (
 //
 // Note that the indexes are not immediately available, but will be created in
 // the background.
-func CreateIndexes(conn bolt.Conn) error {
-	_, err := conn.ExecPipeline([]string{
+func CreateIndexes(conn bolt.Conn) ([]bolt.Result, error) {
+	return conn.ExecPipeline([]string{
 		indexLightningNodePubKeyQuery,
 		indexLightningNodeAliasQuery,
 		indexChannelIDQuery,
 		indexCapacityQuery,
 	}, nil, nil, nil, nil)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

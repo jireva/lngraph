@@ -15,18 +15,12 @@ const (
 )
 
 // CreateNode writes a lightning node resource into neo4j.
-func CreateNode(conn bolt.Conn, lnode ln.Node) error {
+func CreateNode(conn bolt.Conn, lnode ln.Node) (bolt.Result, error) {
 	values := map[string]interface{}{
 		"alias":      lnode.Alias,
 		"pubKey":     lnode.PubKey,
 		"lastUpdate": lnode.LastUpdate,
 		"color":      lnode.Color,
 	}
-
-	_, err := conn.ExecNeo(createLightningNodeQuery, values)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return conn.ExecNeo(createLightningNodeQuery, values)
 }

@@ -32,7 +32,7 @@ func main() {
 		}
 	}
 
-	if err := neo4j.CreateIndexes(conn); err != nil {
+	if _, err := neo4j.CreateIndexes(conn); err != nil {
 		log.Fatal(err)
 	}
 

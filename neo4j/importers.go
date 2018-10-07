@@ -25,7 +25,7 @@ func DeleteAll(conn bolt.Conn) error {
 // ImportNodes imports lightning nodes into neo4j.
 func ImportNodes(conn bolt.Conn, nodes ln.Nodes, counter chan int) error {
 	for i, lnode := range nodes {
-		if err := CreateNode(conn, lnode); err != nil {
+		if _, err := CreateNode(conn, lnode); err != nil {
 			return err
 		}
 		counter <- i
@@ -37,11 +37,11 @@ func ImportNodes(conn bolt.Conn, nodes ln.Nodes, counter chan int) error {
 // ImportChannels imports lightning channels into neo4j.
 func ImportChannels(conn bolt.Conn, channels ln.Channels, counter chan int) error {
 	for i, channel := range channels {
-		if err := CreateChannel(conn, channel); err != nil {
+		if _, err := CreateChannel(conn, channel); err != nil {
 			return err
 		}
 
-		if err := CreateChannelNodeRelationships(conn, channel); err != nil {
+		if _, err := CreateChannelNodeRelationships(conn, channel); err != nil {
 			return err
 		}
 

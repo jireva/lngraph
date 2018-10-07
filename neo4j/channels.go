@@ -35,25 +35,19 @@ const (
 )
 
 // CreateChannel writes a lightning channel resource into neo4j.
-func CreateChannel(conn bolt.Conn, c ln.Channel) error {
+func CreateChannel(conn bolt.Conn, c ln.Channel) (bolt.Result, error) {
 	values := map[string]interface{}{
 		"channelID":  c.ChannelID,
 		"chainPoint": c.ChanPoint,
 		"lastUpdate": c.LastUpdate,
 		"capacity":   c.Capacity,
 	}
-
-	_, err := conn.ExecNeo(createChannelQuery, values)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return conn.ExecNeo(createChannelQuery, values)
 }
 
 // CreateChannelNodeRelationships creates relationships between a lightning channel and
 // its nodes.
-func CreateChannelNodeRelationships(conn bolt.Conn, c ln.Channel) error {
+func CreateChannelNodeRelationships(conn bolt.Conn, c ln.Channel) ([]bolt.Result, error) {
 	node1Values := map[string]interface{}{
 		"channelID":             c.ChannelID,
 		"node1Pub":              c.Node1Pub,
@@ -74,13 +68,8 @@ func CreateChannelNodeRelationships(conn bolt.Conn, c ln.Channel) error {
 		"node2Disabled":         c.Node2Policy.Disabled,
 	}
 
-	_, err := conn.ExecPipeline([]string{
+	return conn.ExecPipeline([]string{
 		relChannelNode1Query,
 		relChannelNode2Query,
 	}, node1Values, node2Values)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
