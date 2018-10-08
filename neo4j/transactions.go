@@ -18,7 +18,7 @@ const (
 
 	relTransactionChannelQuery = `MATCH (t:Transaction),(c:Channel)
 	WHERE c.ChanPoint STARTS WITH {txHash} AND t.TxHash = {txHash}
-	CREATE (t)-[r:f]->(c)`
+	CREATE (t)-[r:FUNDED]->(c)`
 )
 
 // CreateTransaction writes a blockchain transaction resource into neo4j.

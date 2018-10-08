@@ -15,7 +15,7 @@ const (
 
 	relChannelNode1Query = `MATCH (n:Node),(c:Channel)
 	WHERE n.PubKey = {node1Pub} AND c.ChannelID = {channelID}
-	CREATE (n)-[r:c {
+	CREATE (n)-[r:OPENED {
 		Node1TimeLockDelta: {node1TimeLockDelta},
 		Node1MinHtlc: {node1MinHtlc},
 		Node1FeeBaseMsat: {node1FeeBaseMsat},
@@ -25,7 +25,7 @@ const (
 
 	relChannelNode2Query = `MATCH (n:Node),(c:Channel)
 	WHERE n.PubKey = {node2Pub} AND c.ChannelID = {channelID}
-	CREATE (n)-[r:c {
+	CREATE (n)-[r:OPENED {
 		Node2TimeLockDelta: {node2TimeLockDelta},
 		Node2MinHtlc: {node2MinHtlc},
 		Node2FeeBaseMsat: {node2FeeBaseMsat},
