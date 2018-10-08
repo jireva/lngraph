@@ -16,11 +16,10 @@ const (
 
 // CreateNode writes a lightning node resource into neo4j.
 func CreateNode(conn bolt.Conn, lnode ln.Node) (bolt.Result, error) {
-	values := map[string]interface{}{
+	return conn.ExecNeo(createLightningNodeQuery, map[string]interface{}{
 		"alias":      lnode.Alias,
 		"pubKey":     lnode.PubKey,
 		"lastUpdate": lnode.LastUpdate,
 		"color":      lnode.Color,
-	}
-	return conn.ExecNeo(createLightningNodeQuery, values)
+	})
 }

@@ -36,13 +36,12 @@ const (
 
 // CreateChannel writes a lightning channel resource into neo4j.
 func CreateChannel(conn bolt.Conn, c ln.Channel) (bolt.Result, error) {
-	values := map[string]interface{}{
+	return conn.ExecNeo(createChannelQuery, map[string]interface{}{
 		"channelID":  c.ChannelID,
 		"chainPoint": c.ChanPoint,
 		"lastUpdate": c.LastUpdate,
 		"capacity":   c.Capacity,
-	}
-	return conn.ExecNeo(createChannelQuery, values)
+	})
 }
 
 // CreateChannelNodeRelationships creates relationships between a lightning channel and

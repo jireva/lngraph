@@ -23,7 +23,7 @@ const (
 
 // CreateTransaction writes a blockchain transaction resource into neo4j.
 func CreateTransaction(conn bolt.Conn, tx ln.Transaction) (bolt.Result, error) {
-	values := map[string]interface{}{
+	return conn.ExecNeo(createTransactionQuery, map[string]interface{}{
 		"txHash":           tx.TxHash,
 		"amount":           tx.Amount,
 		"numConfirmations": tx.NumConfirmations,
@@ -31,15 +31,13 @@ func CreateTransaction(conn bolt.Conn, tx ln.Transaction) (bolt.Result, error) {
 		"blockHeight":      tx.BlockHeight,
 		"timeStamp":        tx.TimeStamp,
 		"totalFees":        tx.TotalFees,
-	}
-	return conn.ExecNeo(createTransactionQuery, values)
+	})
 }
 
 // CreateTransactionChannelRelationship creates relationship between a
 // blockchain transaction and the channel it's part of.
 func CreateTransactionChannelRelationship(conn bolt.Conn, tx ln.Transaction) (bolt.Result, error) {
-	values := map[string]interface{}{
+	return conn.ExecNeo(relTransactionChannelQuery, map[string]interface{}{
 		"txHash": tx.TxHash,
-	}
-	return conn.ExecNeo(relTransactionChannelQuery, values)
+	})
 }

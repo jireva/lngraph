@@ -20,7 +20,7 @@ const (
 
 // CreatePeerRelationship creates relationship between your node and a peer.
 func CreatePeerRelationship(conn bolt.Conn, myPubKey string, p ln.Peer) (bolt.Result, error) {
-	values := map[string]interface{}{
+	return conn.ExecNeo(relPeerQuery, map[string]interface{}{
 		"myPubKey":   myPubKey,
 		"peerPubKey": p.PubKey,
 		"bytesSent":  p.BytesSent,
@@ -29,6 +29,5 @@ func CreatePeerRelationship(conn bolt.Conn, myPubKey string, p ln.Peer) (bolt.Re
 		"satRecv":    p.SatRecv,
 		"inbound":    p.Inbound,
 		"pingTime":   p.PingTime,
-	}
-	return conn.ExecNeo(relPeerQuery, values)
+	})
 }
