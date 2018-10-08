@@ -67,3 +67,15 @@ func ImportTransactions(conn bolt.Conn, txs []ln.Transaction, counter chan int) 
 	close(counter)
 	return nil
 }
+
+// ImportPeers imports peer relationships into neo4j.
+func ImportPeers(conn bolt.Conn, myPubKey string, peers []ln.Peer, counter chan int) error {
+	for i, peer := range peers {
+		if _, err := CreatePeerRelationship(conn, myPubKey, peer); err != nil {
+			return err
+		}
+		counter <- i
+	}
+	close(counter)
+	return nil
+}

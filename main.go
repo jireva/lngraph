@@ -15,9 +15,11 @@ import (
 
 func main() {
 	neo4jURL := flag.String("url", "bolt://localhost:7687", "neo4j url")
+	noDelete := flag.Bool("nodelete", false, "start without deleting all previous data")
 	graphFile := flag.String("graph", "", "a file with the output of: lncli describegraph")
 	chaintxnsFile := flag.String("chaintxns", "", "a file with the output of: lncli listchaintxns")
-	noDelete := flag.Bool("nodelete", false, "start without deleting all previous data")
+	getInfoFile := flag.String("getinfo", "", "a file with the output of: lncli getinfo")
+	peersFile := flag.String("peers", "", "a file with the output of: lncli listpeers")
 	flag.Parse()
 
 	conn, err := newNeo4jConnection(*neo4jURL)
@@ -45,6 +47,12 @@ func main() {
 
 	if *chaintxnsFile != "" {
 		if err := importTransactions(conn, *chaintxnsFile); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if *peersFile != "" && *getInfoFile != "" {
+		if err := importPeers(conn, *getInfoFile, *peersFile); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -124,6 +132,48 @@ func importTransactions(conn bolt.Conn, chaintxnsFile string) error {
 	bar.Start()
 	c := make(chan int)
 	go neo4j.ImportTransactions(conn, txs.Transactions, c)
+	for {
+		_, ok := <-c
+		if !ok {
+			break
+		}
+		bar.Increment()
+	}
+	bar.Finish()
+
+	return nil
+}
+
+// importPeers reads peers data from a file and provides it to the neo4j
+// importer.
+func importPeers(conn bolt.Conn, getInfoFile, peersFile string) error {
+	getInfoContent, err := ioutil.ReadFile(getInfoFile)
+	if err != nil {
+		return err
+	}
+
+	var getInfo struct {
+		IdentityPubkey string `json:"identity_pubkey"`
+	}
+	if err := json.Unmarshal(getInfoContent, &getInfo); err != nil {
+		return err
+	}
+
+	peersContent, err := ioutil.ReadFile(peersFile)
+	if err != nil {
+		return err
+	}
+
+	var peers ln.Peers
+	if err := json.Unmarshal(peersContent, &peers); err != nil {
+		return err
+	}
+
+	fmt.Println("⚡ Importing peers")
+	bar := pb.New(len(peers.Peers)).SetMaxWidth(80)
+	bar.Start()
+	c := make(chan int)
+	go neo4j.ImportPeers(conn, getInfo.IdentityPubkey, peers.Peers, c)
 	for {
 		_, ok := <-c
 		if !ok {
