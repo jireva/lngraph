@@ -54,7 +54,7 @@ Build and install the `lngraph` binary. You will need [Go installed](https://gol
 go install
 ```
 
-Use `lngraph` to import all the sources into Neo4j.
+Use `lngraph` to import all the sources into Neo4j. By default it connects to localhost (this is why we launched Neo4j with Docker previously) but you can specify a database URL with the `-url` flag.
 
 ```sh
 lngraph \
