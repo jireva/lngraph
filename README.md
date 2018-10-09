@@ -6,6 +6,8 @@ The purpose is to explore local information (channels, chain transactions, peers
 
 ![lngraph screenshot](https://raw.githubusercontent.com/xsb/lngraph/master/img/screenshot.png)
 
+![lngraph screenshot 2](https://raw.githubusercontent.com/xsb/lngraph/master/img/screenshot2.png)
+
 As of today this tool is just a Neo4j importer. All data is persisted in Neo4j and explored using [Neo4j Browser](https://neo4j.com/developer/guide-neo4j-browser/). Source data files have to be manually extracted using `lncli` so the node and network state is completely static.
 
 I started working on this as a way to learn more about both the Lightning Network and Neo4j. If you see something that can be improved (or that it's just broken) feel free to open an issue or a pull request.
