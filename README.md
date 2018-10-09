@@ -25,7 +25,7 @@ Get the source data from `lnd` and place it inside the `$HOME/.lngraph/sources` 
 mkdir -p $HOME/.lngraph/sources
 ssh you@yourlightningnode lncli describegraph > $HOME/.lngraph/sources/describegraph
 ssh you@yourlightningnode lncli getinfo > $HOME/.lngraph/sources/getinfo
-ssh you@yourlightningnode lnclilistpeers > $HOME/.lngraph/sources/listpeers
+ssh you@yourlightningnode lncli listpeers > $HOME/.lngraph/sources/listpeers
 ssh you@yourlightningnode lncli listchaintxns > $HOME/.lngraph/sources/listchaintxns
 ```
 
@@ -58,10 +58,10 @@ Use `lngraph` to import all the sources into Neo4j.
 
 ```sh
 lngraph \
-    -graph $HOME/.lngraph/sources/graph.json \
-    -getinfo $HOME/.lngraph/sources/getinfo.json \
-    -peers $HOME/.lngraph/sources/peers.json \
-    -chaintxns $HOME/.lngraph/sources/listchaintxns.json
+    -graph $HOME/.lngraph/sources/describegraph \
+    -getinfo $HOME/.lngraph/sources/getinfo \
+    -peers $HOME/.lngraph/sources/listpeers \
+    -chaintxns $HOME/.lngraph/sources/listchaintxns
 ```
 
 Open [http://localhost:7474/](http://localhost:7474/) in your browser to open the Neo4j Browser UI.
