@@ -22,7 +22,7 @@ func main() {
 	peersFile := flag.String("peers", "", "a file with the output of: lncli listpeers")
 	flag.Parse()
 
-	conn, err := newNeo4jConnection(*neo4jURL)
+	conn, err := neo4j.NewConnection(*neo4jURL)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -58,16 +58,6 @@ func main() {
 	}
 }
 
-// newNeo4jConnection creates a bolt protocol connection to neo4j.
-func newNeo4jConnection(url string) (bolt.Conn, error) {
-	driver := bolt.NewDriver()
-	conn, err := driver.OpenNeo(url)
-	if err != nil {
-		return nil, err
-	}
-	return conn, nil
-}
-
 // importGraph reads graph data from a file and provides it to the neo4j importer.
 func importGraph(conn bolt.Conn, graphFile string) error {
 	graphContent, err := ioutil.ReadFile(graphFile)
@@ -76,8 +66,8 @@ func importGraph(conn bolt.Conn, graphFile string) error {
 	}
 
 	var graph struct {
-		Nodes    ln.Nodes    `json:"nodes"`
-		Channels ln.Channels `json:"edges"`
+		Nodes    []ln.Node    `json:"nodes"`
+		Channels []ln.Channel `json:"edges"`
 	}
 	if err := json.Unmarshal(graphContent, &graph); err != nil {
 		return err
@@ -86,8 +76,10 @@ func importGraph(conn bolt.Conn, graphFile string) error {
 	fmt.Println("⚡ Importing nodes")
 	bar := pb.New(len(graph.Nodes)).SetMaxWidth(80)
 	bar.Start()
+	nh := ln.NewNodesHandler(neo4j.NewNodesImporter(conn))
+	nh.Load(graph.Nodes)
 	c := make(chan int)
-	go neo4j.ImportNodes(conn, graph.Nodes, c)
+	go nh.Import(c)
 	for {
 		_, ok := <-c
 		if !ok {
@@ -100,8 +92,10 @@ func importGraph(conn bolt.Conn, graphFile string) error {
 	fmt.Println("⚡ Importing channels")
 	bar = pb.New(len(graph.Channels)).SetMaxWidth(80)
 	bar.Start()
+	ch := ln.NewChannelsHandler(neo4j.NewChannelsImporter(conn))
+	ch.Load(graph.Channels)
 	c = make(chan int)
-	go neo4j.ImportChannels(conn, graph.Channels, c)
+	go ch.Import(c)
 	for {
 		_, ok := <-c
 		if !ok {
@@ -122,7 +116,9 @@ func importTransactions(conn bolt.Conn, chaintxnsFile string) error {
 		return err
 	}
 
-	var txs ln.Transactions
+	var txs struct {
+		Transactions []ln.Transaction `json:"transactions"`
+	}
 	if err := json.Unmarshal(transactionsContent, &txs); err != nil {
 		return err
 	}
@@ -130,8 +126,10 @@ func importTransactions(conn bolt.Conn, chaintxnsFile string) error {
 	fmt.Println("⚡ Importing chain transactions")
 	bar := pb.New(len(txs.Transactions)).SetMaxWidth(80)
 	bar.Start()
+	th := ln.NewTransactionsHandler(neo4j.NewTransactionsImporter(conn))
+	th.Load(txs.Transactions)
 	c := make(chan int)
-	go neo4j.ImportTransactions(conn, txs.Transactions, c)
+	go th.Import(c)
 	for {
 		_, ok := <-c
 		if !ok {
@@ -164,7 +162,9 @@ func importPeers(conn bolt.Conn, getInfoFile, peersFile string) error {
 		return err
 	}
 
-	var peers ln.Peers
+	var peers struct {
+		Peers []ln.Peer `json:"peers"`
+	}
 	if err := json.Unmarshal(peersContent, &peers); err != nil {
 		return err
 	}
@@ -172,8 +172,10 @@ func importPeers(conn bolt.Conn, getInfoFile, peersFile string) error {
 	fmt.Println("⚡ Importing peers")
 	bar := pb.New(len(peers.Peers)).SetMaxWidth(80)
 	bar.Start()
+	ph := ln.NewPeersHandler(neo4j.NewPeersImporter(conn))
+	ph.Load(peers.Peers, getInfo.IdentityPubkey)
 	c := make(chan int)
-	go neo4j.ImportPeers(conn, getInfo.IdentityPubkey, peers.Peers, c)
+	go ph.Import(c)
 	for {
 		_, ok := <-c
 		if !ok {

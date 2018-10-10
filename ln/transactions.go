@@ -1,12 +1,7 @@
 package ln
 
-// Transactions represents blockchain transactions known by the lightning
+// Transaction represents a blockchain transaction known by the lightning
 // network node.
-type Transactions struct {
-	Transactions []Transaction `json:"transactions"`
-}
-
-// Transaction represents a blockchain transaction.
 type Transaction struct {
 	TxHash           string   `json:"tx_hash"`
 	Amount           int64    `json:"amount,string"`
@@ -16,4 +11,32 @@ type Transaction struct {
 	TimeStamp        int64    `json:"time_stamp,string"`
 	TotalFees        int64    `json:"total_fees,string"`
 	Addresses        []string `json:"dest_addresses,omitempty"`
+}
+
+// TransactionsImporter loads and imports chain transaction elements.
+type TransactionsImporter interface {
+	Import(transactions []Transaction, counter chan int) error
+}
+
+// TransactionsHandler handles and imports chain transactions.
+type TransactionsHandler struct {
+	Transactions []Transaction
+	Importer     TransactionsImporter
+}
+
+// NewTransactionsHandler creates a new TransactionsHandler.
+func NewTransactionsHandler(ti TransactionsImporter) TransactionsHandler {
+	return TransactionsHandler{
+		Importer: ti,
+	}
+}
+
+// Load loads transactions into a TransactionsHandler.
+func (th *TransactionsHandler) Load(transactions []Transaction) {
+	th.Transactions = transactions
+}
+
+// Import uses the specific importer method for importing data for persistence.
+func (th TransactionsHandler) Import(counter chan int) error {
+	return th.Importer.Import(th.Transactions, counter)
 }

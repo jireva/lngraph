@@ -18,16 +18,36 @@ const (
 	} ]->(n2)`
 )
 
-// CreatePeerRelationship creates relationship between your node and a peer.
-func CreatePeerRelationship(conn bolt.Conn, myPubKey string, p ln.Peer) (bolt.Result, error) {
-	return conn.ExecNeo(relPeerQuery, map[string]interface{}{
-		"myPubKey":   myPubKey,
-		"peerPubKey": p.PubKey,
-		"bytesSent":  p.BytesSent,
-		"bytesRecv":  p.BytesRecv,
-		"satSent":    p.SatSent,
-		"satRecv":    p.SatRecv,
-		"inbound":    p.Inbound,
-		"pingTime":   p.PingTime,
-	})
+// PeersImporter implements a Neo4j importer for peers.
+type PeersImporter struct {
+	conn bolt.Conn
+}
+
+// NewPeersImporter creates a new PeersImporter.
+func NewPeersImporter(conn bolt.Conn) PeersImporter {
+	return PeersImporter{
+		conn: conn,
+	}
+}
+
+// Import gets multiple peer resources and imports them into Neo4j and
+// creates relationships between them and the user's node.
+func (pi PeersImporter) Import(peers []ln.Peer, myPubKey string, counter chan int) error {
+	for i, peer := range peers {
+		if _, err := pi.conn.ExecNeo(relPeerQuery, map[string]interface{}{
+			"myPubKey":   myPubKey,
+			"peerPubKey": peer.PubKey,
+			"bytesSent":  peer.BytesSent,
+			"bytesRecv":  peer.BytesRecv,
+			"satSent":    peer.SatSent,
+			"satRecv":    peer.SatRecv,
+			"inbound":    peer.Inbound,
+			"pingTime":   peer.PingTime,
+		}); err != nil {
+			return err
+		}
+		counter <- i
+	}
+	close(counter)
+	return nil
 }

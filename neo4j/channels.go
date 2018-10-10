@@ -34,41 +34,62 @@ const (
 	} ]->(c)`
 )
 
-// CreateChannel writes a lightning channel resource into neo4j.
-func CreateChannel(conn bolt.Conn, c ln.Channel) (bolt.Result, error) {
-	return conn.ExecNeo(createChannelQuery, map[string]interface{}{
-		"channelID":  c.ChannelID,
-		"chainPoint": c.ChanPoint,
-		"lastUpdate": c.LastUpdate,
-		"capacity":   c.Capacity,
-	})
+// ChannelsImporter implements a Neo4j importer for channels.
+type ChannelsImporter struct {
+	conn bolt.Conn
 }
 
-// CreateChannelNodeRelationships creates relationships between a lightning channel and
-// its nodes.
-func CreateChannelNodeRelationships(conn bolt.Conn, c ln.Channel) ([]bolt.Result, error) {
-	node1Values := map[string]interface{}{
-		"channelID":             c.ChannelID,
-		"node1Pub":              c.Node1Pub,
-		"node1TimeLockDelta":    c.Node1Policy.TimeLockDelta,
-		"node1MinHtlc":          c.Node1Policy.MinHtlc,
-		"node1FeeBaseMsat":      c.Node1Policy.FeeBaseMsat,
-		"node1FeeRateMilliMsat": c.Node1Policy.FeeRateMilliMsat,
-		"node1Disabled":         c.Node1Policy.Disabled,
+// NewChannelsImporter creates a new ChannelsImporter.
+func NewChannelsImporter(conn bolt.Conn) ChannelsImporter {
+	return ChannelsImporter{
+		conn: conn,
 	}
+}
 
-	node2Values := map[string]interface{}{
-		"channelID":             c.ChannelID,
-		"node2Pub":              c.Node2Pub,
-		"node2TimeLockDelta":    c.Node2Policy.TimeLockDelta,
-		"node2MinHtlc":          c.Node2Policy.MinHtlc,
-		"node2FeeBaseMsat":      c.Node2Policy.FeeBaseMsat,
-		"node2FeeRateMilliMsat": c.Node2Policy.FeeRateMilliMsat,
-		"node2Disabled":         c.Node2Policy.Disabled,
+// Import gets multiple channel resources and imports them into Neo4j and
+// creates relationships between each channel and its nodes.
+func (ci ChannelsImporter) Import(channels []ln.Channel, counter chan int) error {
+	for i, c := range channels {
+		channelValues := map[string]interface{}{
+			"channelID":  c.ChannelID,
+			"chainPoint": c.ChanPoint,
+			"lastUpdate": c.LastUpdate,
+			"capacity":   c.Capacity,
+		}
+
+		if _, err := ci.conn.ExecNeo(createChannelQuery, channelValues); err != nil {
+			return err
+		}
+
+		node1Values := map[string]interface{}{
+			"channelID":             c.ChannelID,
+			"node1Pub":              c.Node1Pub,
+			"node1TimeLockDelta":    c.Node1Policy.TimeLockDelta,
+			"node1MinHtlc":          c.Node1Policy.MinHtlc,
+			"node1FeeBaseMsat":      c.Node1Policy.FeeBaseMsat,
+			"node1FeeRateMilliMsat": c.Node1Policy.FeeRateMilliMsat,
+			"node1Disabled":         c.Node1Policy.Disabled,
+		}
+
+		node2Values := map[string]interface{}{
+			"channelID":             c.ChannelID,
+			"node2Pub":              c.Node2Pub,
+			"node2TimeLockDelta":    c.Node2Policy.TimeLockDelta,
+			"node2MinHtlc":          c.Node2Policy.MinHtlc,
+			"node2FeeBaseMsat":      c.Node2Policy.FeeBaseMsat,
+			"node2FeeRateMilliMsat": c.Node2Policy.FeeRateMilliMsat,
+			"node2Disabled":         c.Node2Policy.Disabled,
+		}
+
+		if _, err := ci.conn.ExecPipeline([]string{
+			relChannelNode1Query,
+			relChannelNode2Query,
+		}, node1Values, node2Values); err != nil {
+			return err
+		}
+
+		counter <- i
 	}
-
-	return conn.ExecPipeline([]string{
-		relChannelNode1Query,
-		relChannelNode2Query,
-	}, node1Values, node2Values)
+	close(counter)
+	return nil
 }
