@@ -78,7 +78,6 @@ A good start is to visualise your node, your channels, the nodes you have opened
 MATCH (mynode:Node)-[:OPENED]->(mychannels:Channel)<-[:FUNDED]-(mytransactions:Transaction)
 MATCH (othernodes:Node)-[:OPENED]->(mychannels:Channel)
 MATCH (mynode:Node)-[:PEER]->(peers:Node)
-WHERE mynode.PubKey = 'PUBLIC_KEY_OF_YOUR_NODE'
 RETURN mynode, mychannels, mytransactions, othernodes, peers
 ```
 
