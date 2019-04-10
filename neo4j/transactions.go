@@ -15,7 +15,8 @@ const (
 		BlockHash: {blockHash},
 		BlockHeight: {blockHeight},
 		TimeStamp: {timeStamp},
-		TotalFees: {totalFees}
+		TotalFees: {totalFees},
+		Addresses: {addresses}
 	} )`
 
 	relTransactionChannelQuery = `MATCH (t:Transaction),(c:Channel)
@@ -46,6 +47,13 @@ func (ti TransactionsImporter) Import(transactions []ln.Transaction, counter cha
 		} else {
 			amount = tx.Amount
 		}
+		var addresses string
+		for _, a := range tx.Addresses {
+			if addresses != "" {
+				addresses += ","
+			}
+			addresses += a
+		}
 		values := map[string]interface{}{
 			"txHash":           tx.TxHash,
 			"amount":           amount,
@@ -54,6 +62,7 @@ func (ti TransactionsImporter) Import(transactions []ln.Transaction, counter cha
 			"blockHeight":      tx.BlockHeight,
 			"timeStamp":        time.Unix(tx.TimeStamp, 0).Format("2006-01-02 03:04"),
 			"totalFees":        tx.TotalFees,
+			"addresses":        addresses,
 		}
 
 		if _, err := ti.conn.ExecNeo(createTransactionQuery, values); err != nil {
