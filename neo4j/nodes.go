@@ -36,7 +36,7 @@ func (ni NodesImporter) Import(nodes []ln.Node, counter chan int) error {
 		var addresses string
 		for _, a := range lnode.Addresses {
 			if addresses != "" {
-				addresses += " "
+				addresses += ","
 			}
 			addresses += fmt.Sprintf("%s:%s", a.Network, a.Addr)
 		}
