@@ -2,7 +2,7 @@ package ln
 
 // Node represents a lightning node.
 type Node struct {
-	LastUpdate uint32 `json:"last_update"`
+	LastUpdate int64  `json:"last_update"`
 	PubKey     string `json:"pub_key"`
 	Alias      string `json:"alias"`
 	Addresses  []struct {

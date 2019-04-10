@@ -1,6 +1,8 @@
 package neo4j
 
 import (
+	"time"
+
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	"github.com/xsb/lngraph/ln"
 )
@@ -53,7 +55,7 @@ func (ci ChannelsImporter) Import(channels []ln.Channel, counter chan int) error
 		channelValues := map[string]interface{}{
 			"channelID":  c.ChannelID,
 			"chainPoint": c.ChanPoint,
-			"lastUpdate": c.LastUpdate,
+			"lastUpdate": time.Unix(c.LastUpdate, 0).Format("2006-01-02 03:04"),
 			"capacity":   c.Capacity,
 		}
 

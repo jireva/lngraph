@@ -1,6 +1,8 @@
 package neo4j
 
 import (
+	"time"
+
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	"github.com/xsb/lngraph/ln"
 )
@@ -32,7 +34,7 @@ func (ni NodesImporter) Import(nodes []ln.Node, counter chan int) error {
 		if _, err := ni.conn.ExecNeo(createLightningNodeQuery, map[string]interface{}{
 			"alias":      lnode.Alias,
 			"pubKey":     lnode.PubKey,
-			"lastUpdate": lnode.LastUpdate,
+			"lastUpdate": time.Unix(lnode.LastUpdate, 0).Format("2006-01-02 03:04"),
 			"color":      lnode.Color,
 		}); err != nil {
 			return err

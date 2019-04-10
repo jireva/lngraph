@@ -1,6 +1,8 @@
 package neo4j
 
 import (
+	"time"
+
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	"github.com/xsb/lngraph/ln"
 )
@@ -43,7 +45,7 @@ func (ti TransactionsImporter) Import(transactions []ln.Transaction, counter cha
 			"numConfirmations": tx.NumConfirmations,
 			"blockHash":        tx.BlockHash,
 			"blockHeight":      tx.BlockHeight,
-			"timeStamp":        tx.TimeStamp,
+			"timeStamp":        time.Unix(tx.TimeStamp, 0).Format("2006-01-02 03:04"),
 			"totalFees":        tx.TotalFees,
 		}
 

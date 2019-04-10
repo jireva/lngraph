@@ -4,7 +4,7 @@ package ln
 type Channel struct {
 	ChannelID   uint64        `json:"channel_id,string"`
 	ChanPoint   string        `json:"chan_point"`
-	LastUpdate  uint32        `json:"last_update"`
+	LastUpdate  int64         `json:"last_update"`
 	Node1Pub    string        `json:"node1_pub"`
 	Node2Pub    string        `json:"node2_pub"`
 	Capacity    int64         `json:"capacity,string"`
