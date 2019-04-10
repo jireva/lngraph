@@ -39,9 +39,16 @@ func NewTransactionsImporter(conn bolt.Conn) TransactionsImporter {
 // creates relationships between them and the channel each of them is part of.
 func (ti TransactionsImporter) Import(transactions []ln.Transaction, counter chan int) error {
 	for i, tx := range transactions {
+		// Show the amount as positive.
+		var amount int64
+		if tx.Amount < 0 {
+			amount = -tx.Amount
+		} else {
+			amount = tx.Amount
+		}
 		values := map[string]interface{}{
 			"txHash":           tx.TxHash,
-			"amount":           tx.Amount,
+			"amount":           amount,
 			"numConfirmations": tx.NumConfirmations,
 			"blockHash":        tx.BlockHash,
 			"blockHeight":      tx.BlockHeight,
