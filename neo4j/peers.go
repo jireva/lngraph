@@ -1,6 +1,8 @@
 package neo4j
 
 import (
+	"time"
+
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	"github.com/xsb/lngraph/ln"
 )
@@ -34,6 +36,9 @@ func NewPeersImporter(conn bolt.Conn) PeersImporter {
 // creates relationships between them and the user's node.
 func (pi PeersImporter) Import(peers []ln.Peer, myPubKey string, counter chan int) error {
 	for i, peer := range peers {
+		// LND uses milliseconds to represent ping time, Go's time.Duration
+		// uses milliseconds instead.
+		pingTime := time.Duration(peer.PingTime * 1000)
 		if _, err := pi.conn.ExecNeo(relPeerQuery, map[string]interface{}{
 			"myPubKey":   myPubKey,
 			"peerPubKey": peer.PubKey,
@@ -42,7 +47,7 @@ func (pi PeersImporter) Import(peers []ln.Peer, myPubKey string, counter chan in
 			"satSent":    peer.SatSent,
 			"satRecv":    peer.SatRecv,
 			"inbound":    peer.Inbound,
-			"pingTime":   peer.PingTime,
+			"pingTime":   pingTime.String(),
 		}); err != nil {
 			return err
 		}
