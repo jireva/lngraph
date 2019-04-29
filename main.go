@@ -1,58 +1,79 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"strings"
 
 	"github.com/cheggaaa/pb"
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
+	"github.com/lightningnetwork/lnd/lncfg"
+	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/macaroons"
 	"github.com/xsb/lngraph/ln"
 	"github.com/xsb/lngraph/neo4j"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	macaroon "gopkg.in/macaroon.v2"
 )
 
 func main() {
+	// neo4j params
 	neo4jURL := flag.String("url", "bolt://localhost:7687", "neo4j url")
 	noDelete := flag.Bool("nodelete", false, "start without deleting all previous data")
+
+	// gRPC params
+	gRPCServer := flag.String("lnd-grpc", "127.0.0.1:10009", "LND gRPC server host:port")
+	macaroonFile := flag.String("macaroon", "", "macaroon file")
+	TLSCertFile := flag.String("tls-cert", "", "TLS certificate file")
+
+	// files importing data
 	graphFile := flag.String("graph", "", "a file with the output of: lncli describegraph")
 	chaintxnsFile := flag.String("chaintxns", "", "a file with the output of: lncli listchaintxns")
-	getInfoFile := flag.String("getinfo", "", "a file with the output of: lncli getinfo")
 	peersFile := flag.String("peers", "", "a file with the output of: lncli listpeers")
 	flag.Parse()
 
-	conn, err := neo4j.NewConnection(*neo4jURL)
+	neo4jConn, err := neo4j.NewConnection(*neo4jURL)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer conn.Close()
+	defer neo4jConn.Close()
+
+	lndClient, err := newLNDClient(*gRPCServer, *macaroonFile, *TLSCertFile)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	if !*noDelete {
 		fmt.Println("⚡ Deleting existing data")
-		if err := neo4j.DeleteAll(conn); err != nil {
+		if err := neo4j.DeleteAll(neo4jConn); err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	if _, err := neo4j.CreateIndexes(conn); err != nil {
+	if _, err := neo4j.CreateIndexes(neo4jConn); err != nil {
 		log.Fatal(err)
 	}
 
 	if *graphFile != "" {
-		if err := importGraph(conn, *graphFile); err != nil {
+		if err := importGraph(neo4jConn, *graphFile); err != nil {
 			log.Fatal(err)
 		}
 	}
 
 	if *chaintxnsFile != "" {
-		if err := importTransactions(conn, *chaintxnsFile); err != nil {
+		if err := importTransactions(neo4jConn, *chaintxnsFile); err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	if *peersFile != "" && *getInfoFile != "" {
-		if err := importPeers(conn, *getInfoFile, *peersFile); err != nil {
+	if *peersFile != "" {
+		if err := importPeers(neo4jConn, lndClient, *peersFile); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -144,18 +165,13 @@ func importTransactions(conn bolt.Conn, chaintxnsFile string) error {
 
 // importPeers reads peers data from a file and provides it to the neo4j
 // importer.
-func importPeers(conn bolt.Conn, getInfoFile, peersFile string) error {
-	getInfoContent, err := ioutil.ReadFile(getInfoFile)
+func importPeers(conn bolt.Conn, lndClient lnrpc.LightningClient, peersFile string) error {
+	ctx := context.Background()
+	resp, err := lndClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
 		return err
 	}
-
-	var getInfo struct {
-		IdentityPubkey string `json:"identity_pubkey"`
-	}
-	if err := json.Unmarshal(getInfoContent, &getInfo); err != nil {
-		return err
-	}
+	myPubKey := resp.GetIdentityPubkey()
 
 	peersContent, err := ioutil.ReadFile(peersFile)
 	if err != nil {
@@ -173,7 +189,7 @@ func importPeers(conn bolt.Conn, getInfoFile, peersFile string) error {
 	bar := pb.New(len(peers.Peers)).SetMaxWidth(80)
 	bar.Start()
 	ph := ln.NewPeersHandler(neo4j.NewPeersImporter(conn))
-	ph.Load(peers.Peers, getInfo.IdentityPubkey)
+	ph.Load(peers.Peers, myPubKey)
 	c := make(chan int)
 	go ph.Import(c)
 	for {
@@ -186,4 +202,42 @@ func importPeers(conn bolt.Conn, getInfoFile, peersFile string) error {
 	bar.Finish()
 
 	return nil
+}
+
+func newLNDClient(gRPCServer, macaroonFile, TLSCertFile string) (lnrpc.LightningClient, error) {
+	var gRPCHost, gRPCPort string
+	server := strings.Split(gRPCServer, ":")
+	if len(server) == 2 {
+		gRPCHost = server[0]
+		gRPCPort = server[1]
+	} else {
+		return nil, errors.New("gRPC server must be provided in the format host:port")
+	}
+
+	providedMacaroon, err := ioutil.ReadFile(macaroonFile)
+	if err != nil {
+		return nil, err
+	}
+
+	grpcCredential, err := credentials.NewClientTLSFromFile(TLSCertFile, "")
+	if err != nil {
+		return nil, err
+	}
+
+	mac := &macaroon.Macaroon{}
+	if err = mac.UnmarshalBinary(providedMacaroon); err != nil {
+		return nil, err
+	}
+	macCredential := macaroons.NewMacaroonCredential(mac)
+
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", gRPCHost, gRPCPort),
+		grpc.WithTransportCredentials(grpcCredential),
+		grpc.WithPerRPCCredentials(macCredential),
+		grpc.WithDialer(lncfg.ClientAddressDialer(fmt.Sprintf("%s", gRPCPort))),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return lnrpc.NewLightningClient(conn), nil
 }
