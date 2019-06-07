@@ -14,11 +14,12 @@ I started working on this as a way to learn more about both the Lightning Networ
 
 ## How to use
 
-Start by cloning this repository.
+Clone the repository and install the `lngraph` binary. You will need [Go installed](https://golang.org/dl/) in your system.:
 
 ```sh
 git clone git@github.com:xsb/lngraph.git
 cd lngraph
+go install
 ```
 
 Run Neo4j and the Neo4j Browser using [Docker](https://docs.docker.com/install).
@@ -33,20 +34,7 @@ docker run -d \
     neo4j
 ```
 
-You can stop and remove the docker container at any moment.
-
-```sh
-docker stop lngraph_neo4j
-docker rm lngraph_neo4j
-```
-
-Build and install the `lngraph` binary. You will need [Go installed](https://golang.org/dl/) in your system.
-
-```sh
-go install
-```
-
-Use `lngraph` to import all the sources into Neo4j. By default it connects to localhost (this is why we launched Neo4j with Docker previously) but you can specify a database URL with the `-url` flag.
+Use `lngraph` to get data from LND and index it in the Neo4j database that we previously launched. By default it connects to localhost (this is why we launched Neo4j with Docker previously) but you can specify a database URL with the `-url` flag.
 
 ```sh
 lngraph \
