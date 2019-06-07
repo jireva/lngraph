@@ -4,7 +4,7 @@ import (
 	"time"
 
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
-	"github.com/xsb/lngraph/ln"
+	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
 const (
@@ -34,7 +34,7 @@ func NewPeersImporter(conn bolt.Conn) PeersImporter {
 
 // Import gets multiple peer resources and imports them into Neo4j and
 // creates relationships between them and the user's node.
-func (pi PeersImporter) Import(peers []ln.Peer, myPubKey string, counter chan int) error {
+func (pi PeersImporter) Import(peers []*lnrpc.Peer, myPubKey string, counter chan int) error {
 	for i, peer := range peers {
 		// LND uses milliseconds to represent ping time, Go's time.Duration
 		// uses milliseconds instead.

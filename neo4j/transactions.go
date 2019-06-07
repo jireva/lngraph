@@ -4,7 +4,7 @@ import (
 	"time"
 
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
-	"github.com/xsb/lngraph/ln"
+	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
 const (
@@ -38,7 +38,7 @@ func NewTransactionsImporter(conn bolt.Conn) TransactionsImporter {
 
 // Import gets multiple transaction resources and imports them into Neo4j and
 // creates relationships between them and the channel each of them is part of.
-func (ti TransactionsImporter) Import(transactions []ln.Transaction, counter chan int) error {
+func (ti TransactionsImporter) Import(transactions []*lnrpc.Transaction, counter chan int) error {
 	for i, tx := range transactions {
 		// Show the amount as positive.
 		var amount int64
@@ -48,7 +48,7 @@ func (ti TransactionsImporter) Import(transactions []ln.Transaction, counter cha
 			amount = tx.Amount
 		}
 		var addresses string
-		for _, a := range tx.Addresses {
+		for _, a := range tx.GetDestAddresses() {
 			if addresses != "" {
 				addresses += ","
 			}

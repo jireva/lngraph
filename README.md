@@ -21,14 +21,6 @@ git clone git@github.com:xsb/lngraph.git
 cd lngraph
 ```
 
-Get the source data from `lnd` and place it inside the `$HOME/.lngraph/sources` directory. If you have access to your node using ssh you can do something like this.
-
-```sh
-mkdir -p $HOME/.lngraph/sources
-ssh you@yourlightningnode lncli listpeers > $HOME/.lngraph/sources/listpeers
-ssh you@yourlightningnode lncli listchaintxns > $HOME/.lngraph/sources/listchaintxns
-```
-
 Run Neo4j and the Neo4j Browser using [Docker](https://docs.docker.com/install).
 
 ```sh
@@ -60,9 +52,7 @@ Use `lngraph` to import all the sources into Neo4j. By default it connects to lo
 lngraph \
     -lnd-grpc 127.0.0.1:10009 \
     -macaroon /path/to/readonly.macaroon \
-    -tls-cert /path/to/tls.cert \
-    -peers $HOME/.lngraph/sources/listpeers \
-    -chaintxns $HOME/.lngraph/sources/listchaintxns
+    -tls-cert /path/to/tls.cert
 ```
 
 Open [http://localhost:7474/](http://localhost:7474/) in your browser to open the Neo4j Browser UI.

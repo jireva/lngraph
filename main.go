@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -15,7 +14,6 @@ import (
 	"github.com/lightningnetwork/lnd/lncfg"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
-	"github.com/xsb/lngraph/ln"
 	"github.com/xsb/lngraph/neo4j"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -23,18 +21,11 @@ import (
 )
 
 func main() {
-	// neo4j params
 	neo4jURL := flag.String("url", "bolt://localhost:7687", "neo4j url")
 	noDelete := flag.Bool("nodelete", false, "start without deleting all previous data")
-
-	// gRPC params
 	gRPCServer := flag.String("lnd-grpc", "127.0.0.1:10009", "LND gRPC server host:port")
 	macaroonFile := flag.String("macaroon", "", "macaroon file")
 	TLSCertFile := flag.String("tls-cert", "", "TLS certificate file")
-
-	// files importing data
-	chaintxnsFile := flag.String("chaintxns", "", "a file with the output of: lncli listchaintxns")
-	peersFile := flag.String("peers", "", "a file with the output of: lncli listpeers")
 	flag.Parse()
 
 	neo4jConn, err := neo4j.NewConnection(*neo4jURL)
@@ -63,16 +54,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if *chaintxnsFile != "" {
-		if err := importTransactions(neo4jConn, *chaintxnsFile); err != nil {
-			log.Fatal(err)
-		}
+	if err := importTransactions(neo4jConn, lndClient); err != nil {
+		log.Fatal(err)
 	}
 
-	if *peersFile != "" {
-		if err := importPeers(neo4jConn, lndClient, *peersFile); err != nil {
-			log.Fatal(err)
-		}
+	if err := importPeers(neo4jConn, lndClient); err != nil {
+		log.Fatal(err)
 	}
 }
 
@@ -117,28 +104,21 @@ func importGraph(conn bolt.Conn, lndClient lnrpc.LightningClient) error {
 	return nil
 }
 
-// importTransactions reads chain transactions data from a file and provides
+// importTransactions reads chain transactions data from lnd gRPC and provides
 // it to the neo4j importer.
-func importTransactions(conn bolt.Conn, chaintxnsFile string) error {
-	transactionsContent, err := ioutil.ReadFile(chaintxnsFile)
+func importTransactions(conn bolt.Conn, lndClient lnrpc.LightningClient) error {
+	ctx := context.Background()
+	resp, err := lndClient.GetTransactions(ctx, &lnrpc.GetTransactionsRequest{})
 	if err != nil {
 		return err
 	}
 
-	var txs struct {
-		Transactions []ln.Transaction `json:"transactions"`
-	}
-	if err := json.Unmarshal(transactionsContent, &txs); err != nil {
-		return err
-	}
-
 	fmt.Println("⚡ Importing chain transactions")
-	bar := pb.New(len(txs.Transactions)).SetMaxWidth(80)
+	bar := pb.New(len(resp.GetTransactions())).SetMaxWidth(80)
 	bar.Start()
-	th := ln.NewTransactionsHandler(neo4j.NewTransactionsImporter(conn))
-	th.Load(txs.Transactions)
+	ti := neo4j.NewTransactionsImporter(conn)
 	c := make(chan int)
-	go th.Import(c)
+	go ti.Import(resp.GetTransactions(), c)
 	for {
 		_, ok := <-c
 		if !ok {
@@ -151,35 +131,27 @@ func importTransactions(conn bolt.Conn, chaintxnsFile string) error {
 	return nil
 }
 
-// importPeers reads peers data from a file and provides it to the neo4j
+// importPeers reads peers data from lnd gRPC and provides it to the neo4j
 // importer.
-func importPeers(conn bolt.Conn, lndClient lnrpc.LightningClient, peersFile string) error {
+func importPeers(conn bolt.Conn, lndClient lnrpc.LightningClient) error {
 	ctx := context.Background()
-	resp, err := lndClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
+	getInfoResp, err := lndClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
 		return err
 	}
-	myPubKey := resp.GetIdentityPubkey()
+	myPubKey := getInfoResp.GetIdentityPubkey()
 
-	peersContent, err := ioutil.ReadFile(peersFile)
+	listPeersResp, err := lndClient.ListPeers(ctx, &lnrpc.ListPeersRequest{})
 	if err != nil {
-		return err
-	}
-
-	var peers struct {
-		Peers []ln.Peer `json:"peers"`
-	}
-	if err := json.Unmarshal(peersContent, &peers); err != nil {
 		return err
 	}
 
 	fmt.Println("⚡ Importing peers")
-	bar := pb.New(len(peers.Peers)).SetMaxWidth(80)
+	bar := pb.New(len(listPeersResp.GetPeers())).SetMaxWidth(80)
 	bar.Start()
-	ph := ln.NewPeersHandler(neo4j.NewPeersImporter(conn))
-	ph.Load(peers.Peers, myPubKey)
+	pi := neo4j.NewPeersImporter(conn)
 	c := make(chan int)
-	go ph.Import(c)
+	go pi.Import(listPeersResp.GetPeers(), myPubKey, c)
 	for {
 		_, ok := <-c
 		if !ok {
