@@ -230,10 +230,17 @@ func newLNDClient(gRPCServer, macaroonFile, TLSCertFile string) (lnrpc.Lightning
 	}
 	macCredential := macaroons.NewMacaroonCredential(mac)
 
+	// maxMsgRecvSize is the largest message our client will receive. We
+	// set this to ~50Mb atm.
+	//
+	// Note: Got this config from lncli.
+	maxMsgRecvSize := grpc.MaxCallRecvMsgSize(1 * 1024 * 1024 * 50)
+
 	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", gRPCHost, gRPCPort),
 		grpc.WithTransportCredentials(grpcCredential),
 		grpc.WithPerRPCCredentials(macCredential),
 		grpc.WithDialer(lncfg.ClientAddressDialer(fmt.Sprintf("%s", gRPCPort))),
+		grpc.WithDefaultCallOptions(maxMsgRecvSize),
 	)
 	if err != nil {
 		return nil, err
