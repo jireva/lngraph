@@ -4,7 +4,7 @@ import (
 	"time"
 
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
-	"github.com/xsb/lngraph/ln"
+	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
 const (
@@ -40,12 +40,12 @@ func NewChannelsImporter(conn bolt.Conn) ChannelsImporter {
 
 // Import gets multiple channel resources and imports them into Neo4j and
 // creates relationships between each channel and its nodes.
-func (ci ChannelsImporter) Import(channels []ln.Channel, counter chan int) error {
+func (ci ChannelsImporter) Import(channels []*lnrpc.ChannelEdge, counter chan int) error {
 	for i, c := range channels {
 		channelValues := map[string]interface{}{
-			"channelID":  c.ChannelID,
+			"channelID":  c.ChannelId,
 			"chainPoint": c.ChanPoint,
-			"lastUpdate": time.Unix(c.LastUpdate, 0).Format("2006-01-02 03:04"),
+			"lastUpdate": time.Unix(int64(c.LastUpdate), 0).Format("2006-01-02 03:04"),
 			"capacity":   c.Capacity,
 		}
 
@@ -54,23 +54,23 @@ func (ci ChannelsImporter) Import(channels []ln.Channel, counter chan int) error
 		}
 
 		node1Values := map[string]interface{}{
-			"channelID":        c.ChannelID,
+			"channelID":        c.ChannelId,
 			"pub":              c.Node1Pub,
-			"timeLockDelta":    c.Node1Policy.TimeLockDelta,
-			"minHtlc":          c.Node1Policy.MinHtlc,
-			"feeBaseMsat":      c.Node1Policy.FeeBaseMsat,
-			"feeRateMilliMsat": c.Node1Policy.FeeRateMilliMsat,
-			"disabled":         c.Node1Policy.Disabled,
+			"timeLockDelta":    c.GetNode1Policy().GetTimeLockDelta(),
+			"minHtlc":          c.GetNode1Policy().GetMinHtlc(),
+			"feeBaseMsat":      c.GetNode1Policy().GetFeeBaseMsat(),
+			"feeRateMilliMsat": c.GetNode1Policy().GetFeeRateMilliMsat(),
+			"disabled":         c.GetNode1Policy().GetDisabled(),
 		}
 
 		node2Values := map[string]interface{}{
-			"channelID":        c.ChannelID,
+			"channelID":        c.ChannelId,
 			"pub":              c.Node2Pub,
-			"timeLockDelta":    c.Node2Policy.TimeLockDelta,
-			"minHtlc":          c.Node2Policy.MinHtlc,
-			"feeBaseMsat":      c.Node2Policy.FeeBaseMsat,
-			"feeRateMilliMsat": c.Node2Policy.FeeRateMilliMsat,
-			"disabled":         c.Node2Policy.Disabled,
+			"timeLockDelta":    c.GetNode2Policy().GetTimeLockDelta(),
+			"minHtlc":          c.GetNode2Policy().GetMinHtlc(),
+			"feeBaseMsat":      c.GetNode2Policy().GetFeeBaseMsat(),
+			"feeRateMilliMsat": c.GetNode2Policy().GetFeeRateMilliMsat(),
+			"disabled":         c.GetNode2Policy().GetDisabled(),
 		}
 
 		if _, err := ci.conn.ExecPipeline([]string{

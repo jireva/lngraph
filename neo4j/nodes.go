@@ -5,7 +5,7 @@ import (
 	"time"
 
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
-	"github.com/xsb/lngraph/ln"
+	"github.com/lightningnetwork/lnd/lnrpc"
 )
 
 const (
@@ -31,7 +31,7 @@ func NewNodesImporter(conn bolt.Conn) NodesImporter {
 }
 
 // Import gets multiple node resources and imports them into Neo4j.
-func (ni NodesImporter) Import(nodes []ln.Node, counter chan int) error {
+func (ni NodesImporter) Import(nodes []*lnrpc.LightningNode, counter chan int) error {
 	for i, lnode := range nodes {
 		var addresses string
 		for _, a := range lnode.Addresses {
@@ -43,7 +43,7 @@ func (ni NodesImporter) Import(nodes []ln.Node, counter chan int) error {
 		if _, err := ni.conn.ExecNeo(createLightningNodeQuery, map[string]interface{}{
 			"alias":      lnode.Alias,
 			"pubKey":     lnode.PubKey,
-			"lastUpdate": time.Unix(lnode.LastUpdate, 0).Format("2006-01-02 03:04"),
+			"lastUpdate": time.Unix(int64(lnode.LastUpdate), 0).Format("2006-01-02 03:04"),
 			"color":      lnode.Color,
 			"addresses":  addresses,
 		}); err != nil {

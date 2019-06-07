@@ -33,7 +33,6 @@ func main() {
 	TLSCertFile := flag.String("tls-cert", "", "TLS certificate file")
 
 	// files importing data
-	graphFile := flag.String("graph", "", "a file with the output of: lncli describegraph")
 	chaintxnsFile := flag.String("chaintxns", "", "a file with the output of: lncli listchaintxns")
 	peersFile := flag.String("peers", "", "a file with the output of: lncli listpeers")
 	flag.Parse()
@@ -60,10 +59,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if *graphFile != "" {
-		if err := importGraph(neo4jConn, *graphFile); err != nil {
-			log.Fatal(err)
-		}
+	if err := importGraph(neo4jConn, lndClient); err != nil {
+		log.Fatal(err)
 	}
 
 	if *chaintxnsFile != "" {
@@ -79,28 +76,20 @@ func main() {
 	}
 }
 
-// importGraph reads graph data from a file and provides it to the neo4j importer.
-func importGraph(conn bolt.Conn, graphFile string) error {
-	graphContent, err := ioutil.ReadFile(graphFile)
+// importGraph reads graph data from lnd gRPC and provides it to the neo4j importer.
+func importGraph(conn bolt.Conn, lndClient lnrpc.LightningClient) error {
+	ctx := context.Background()
+	resp, err := lndClient.DescribeGraph(ctx, &lnrpc.ChannelGraphRequest{})
 	if err != nil {
 		return err
 	}
 
-	var graph struct {
-		Nodes    []ln.Node    `json:"nodes"`
-		Channels []ln.Channel `json:"edges"`
-	}
-	if err := json.Unmarshal(graphContent, &graph); err != nil {
-		return err
-	}
-
 	fmt.Println("⚡ Importing nodes")
-	bar := pb.New(len(graph.Nodes)).SetMaxWidth(80)
+	bar := pb.New(len(resp.GetNodes())).SetMaxWidth(80)
 	bar.Start()
-	nh := ln.NewNodesHandler(neo4j.NewNodesImporter(conn))
-	nh.Load(graph.Nodes)
+	ni := neo4j.NewNodesImporter(conn)
 	c := make(chan int)
-	go nh.Import(c)
+	go ni.Import(resp.GetNodes(), c)
 	for {
 		_, ok := <-c
 		if !ok {
@@ -111,12 +100,11 @@ func importGraph(conn bolt.Conn, graphFile string) error {
 	bar.Finish()
 
 	fmt.Println("⚡ Importing channels")
-	bar = pb.New(len(graph.Channels)).SetMaxWidth(80)
+	bar = pb.New(len(resp.GetEdges())).SetMaxWidth(80)
 	bar.Start()
-	ch := ln.NewChannelsHandler(neo4j.NewChannelsImporter(conn))
-	ch.Load(graph.Channels)
+	ci := neo4j.NewChannelsImporter(conn)
 	c = make(chan int)
-	go ch.Import(c)
+	go ci.Import(resp.GetEdges(), c)
 	for {
 		_, ok := <-c
 		if !ok {

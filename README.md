@@ -25,7 +25,6 @@ Get the source data from `lnd` and place it inside the `$HOME/.lngraph/sources` 
 
 ```sh
 mkdir -p $HOME/.lngraph/sources
-ssh you@yourlightningnode lncli describegraph > $HOME/.lngraph/sources/describegraph
 ssh you@yourlightningnode lncli listpeers > $HOME/.lngraph/sources/listpeers
 ssh you@yourlightningnode lncli listchaintxns > $HOME/.lngraph/sources/listchaintxns
 ```
@@ -62,7 +61,6 @@ lngraph \
     -lnd-grpc 127.0.0.1:10009 \
     -macaroon /path/to/readonly.macaroon \
     -tls-cert /path/to/tls.cert \
-    -graph $HOME/.lngraph/sources/describegraph \
     -peers $HOME/.lngraph/sources/listpeers \
     -chaintxns $HOME/.lngraph/sources/listchaintxns
 ```
