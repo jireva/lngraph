@@ -59,9 +59,9 @@ Use `lngraph` to import all the sources into Neo4j. By default it connects to lo
 
 ```sh
 lngraph \
-    -lnd-grpc 127.0.0.1:10009
-    -macaroon /path/to/readonly.macaroon
-    -tls-cert /path/to/tls.cert
+    -lnd-grpc 127.0.0.1:10009 \
+    -macaroon /path/to/readonly.macaroon \
+    -tls-cert /path/to/tls.cert \
     -graph $HOME/.lngraph/sources/describegraph \
     -peers $HOME/.lngraph/sources/listpeers \
     -chaintxns $HOME/.lngraph/sources/listchaintxns
