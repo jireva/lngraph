@@ -10,11 +10,11 @@ import (
 	"strings"
 
 	"github.com/cheggaaa/pb"
-	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	"github.com/lightningnetwork/lnd/lncfg"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/macaroons"
-	"github.com/xsb/lngraph/neo4j"
+	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
+	"github.com/xsb/lngraph/db"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	macaroon "gopkg.in/macaroon.v2"
@@ -28,11 +28,11 @@ func main() {
 	TLSCertFile := flag.String("tls-cert", "", "TLS certificate file")
 	flag.Parse()
 
-	neo4jConn, err := neo4j.NewConnection(*neo4jURL)
+	driver, err := neo4j.NewDriver(*neo4jURL, neo4j.NoAuth())
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer neo4jConn.Close()
+	defer driver.Close()
 
 	lndClient, err := newLNDClient(*gRPCServer, *macaroonFile, *TLSCertFile)
 	if err != nil {
@@ -40,41 +40,41 @@ func main() {
 	}
 
 	if !*noDelete {
-		fmt.Println("⚡ Deleting existing data")
-		if err := neo4j.DeleteAll(neo4jConn); err != nil {
+		log.Println("Deleting existing data")
+		if err := db.DeleteAll(driver); err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	if _, err := neo4j.CreateIndexes(neo4jConn); err != nil {
+	if err := db.CreateIndexes(driver); err != nil {
 		log.Fatal(err)
 	}
 
-	if err := importGraph(neo4jConn, lndClient); err != nil {
+	if err := importGraph(driver, lndClient); err != nil {
 		log.Fatal(err)
 	}
 
-	if err := importTransactions(neo4jConn, lndClient); err != nil {
+	if err := importTransactions(driver, lndClient); err != nil {
 		log.Fatal(err)
 	}
 
-	if err := importPeers(neo4jConn, lndClient); err != nil {
+	if err := importPeers(driver, lndClient); err != nil {
 		log.Fatal(err)
 	}
 }
 
 // importGraph reads graph data from lnd gRPC and provides it to the neo4j importer.
-func importGraph(conn bolt.Conn, lndClient lnrpc.LightningClient) error {
+func importGraph(driver neo4j.Driver, lndClient lnrpc.LightningClient) error {
 	ctx := context.Background()
 	resp, err := lndClient.DescribeGraph(ctx, &lnrpc.ChannelGraphRequest{})
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("⚡ Importing nodes")
+	log.Println("Importing nodes")
 	bar := pb.New(len(resp.GetNodes())).SetMaxWidth(80)
 	bar.Start()
-	ni := neo4j.NewNodesImporter(conn)
+	ni := db.NodesImporter{driver}
 	c := make(chan int)
 	go ni.Import(resp.GetNodes(), c)
 	for {
@@ -86,10 +86,10 @@ func importGraph(conn bolt.Conn, lndClient lnrpc.LightningClient) error {
 	}
 	bar.Finish()
 
-	fmt.Println("⚡ Importing channels")
+	log.Println("Importing channels")
 	bar = pb.New(len(resp.GetEdges())).SetMaxWidth(80)
 	bar.Start()
-	ci := neo4j.NewChannelsImporter(conn)
+	ci := db.ChannelsImporter{driver}
 	c = make(chan int)
 	go ci.Import(resp.GetEdges(), c)
 	for {
@@ -106,17 +106,17 @@ func importGraph(conn bolt.Conn, lndClient lnrpc.LightningClient) error {
 
 // importTransactions reads chain transactions data from lnd gRPC and provides
 // it to the neo4j importer.
-func importTransactions(conn bolt.Conn, lndClient lnrpc.LightningClient) error {
+func importTransactions(driver neo4j.Driver, lndClient lnrpc.LightningClient) error {
 	ctx := context.Background()
 	resp, err := lndClient.GetTransactions(ctx, &lnrpc.GetTransactionsRequest{})
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("⚡ Importing chain transactions")
+	log.Println("Importing chain transactions")
 	bar := pb.New(len(resp.GetTransactions())).SetMaxWidth(80)
 	bar.Start()
-	ti := neo4j.NewTransactionsImporter(conn)
+	ti := db.TransactionsImporter{driver}
 	c := make(chan int)
 	go ti.Import(resp.GetTransactions(), c)
 	for {
@@ -133,7 +133,7 @@ func importTransactions(conn bolt.Conn, lndClient lnrpc.LightningClient) error {
 
 // importPeers reads peers data from lnd gRPC and provides it to the neo4j
 // importer.
-func importPeers(conn bolt.Conn, lndClient lnrpc.LightningClient) error {
+func importPeers(driver neo4j.Driver, lndClient lnrpc.LightningClient) error {
 	ctx := context.Background()
 	getInfoResp, err := lndClient.GetInfo(ctx, &lnrpc.GetInfoRequest{})
 	if err != nil {
@@ -146,10 +146,10 @@ func importPeers(conn bolt.Conn, lndClient lnrpc.LightningClient) error {
 		return err
 	}
 
-	fmt.Println("⚡ Importing peers")
+	log.Println("Importing peers")
 	bar := pb.New(len(listPeersResp.GetPeers())).SetMaxWidth(80)
 	bar.Start()
-	pi := neo4j.NewPeersImporter(conn)
+	pi := db.PeersImporter{driver}
 	c := make(chan int)
 	go pi.Import(listPeersResp.GetPeers(), myPubKey, c)
 	for {

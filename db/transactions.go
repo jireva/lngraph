@@ -1,44 +1,39 @@
-package neo4j
+package db
 
 import (
 	"time"
 
-	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/neo4j/neo4j-go-driver/v4/neo4j"
 )
 
 const (
 	createTransactionQuery = `CREATE (t:Transaction {
-		TxHash: {txHash},
-		Amount: {amount},
-		NumConfirmations: {numConfirmations},
-		BlockHash: {blockHash},
-		BlockHeight: {blockHeight},
-		TimeStamp: {timeStamp},
-		TotalFees: {totalFees},
-		Addresses: {addresses}
+		TxHash: $txHash,
+		Amount: $amount,
+		NumConfirmations: $numConfirmations,
+		BlockHash: $blockHash,
+		BlockHeight: $blockHeight,
+		TimeStamp: $timeStamp,
+		TotalFees: $totalFees,
+		Addresses: $addresses
 	} )`
 
 	relTransactionChannelQuery = `MATCH (t:Transaction),(c:Channel)
-	WHERE c.ChanPoint STARTS WITH {txHash} AND t.TxHash = {txHash}
+	WHERE c.ChanPoint STARTS WITH $txHash AND t.TxHash = $txHash
 	CREATE (t)-[r:FUNDED]->(c)`
 )
 
 // TransactionsImporter implements a Neo4j importer for transactions.
 type TransactionsImporter struct {
-	conn bolt.Conn
-}
-
-// NewTransactionsImporter creates a new TransactionsImporter.
-func NewTransactionsImporter(conn bolt.Conn) TransactionsImporter {
-	return TransactionsImporter{
-		conn: conn,
-	}
+	Driver neo4j.Driver
 }
 
 // Import gets multiple transaction resources and imports them into Neo4j and
 // creates relationships between them and the channel each of them is part of.
 func (ti TransactionsImporter) Import(transactions []*lnrpc.Transaction, counter chan int) error {
+	session := ti.Driver.NewSession(neo4j.SessionConfig{})
+	defer session.Close()
 	for i, tx := range transactions {
 		// Show the amount as positive.
 		var amount int64
@@ -65,11 +60,15 @@ func (ti TransactionsImporter) Import(transactions []*lnrpc.Transaction, counter
 			"addresses":        addresses,
 		}
 
-		if _, err := ti.conn.ExecNeo(createTransactionQuery, values); err != nil {
+		if _, err := session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+			return tx.Run(createTransactionQuery, values)
+		}); err != nil {
 			return err
 		}
 
-		if _, err := ti.conn.ExecNeo(relTransactionChannelQuery, values); err != nil {
+		if _, err := session.WriteTransaction(func(tx neo4j.Transaction) (interface{}, error) {
+			return tx.Run(relTransactionChannelQuery, values)
+		}); err != nil {
 			return err
 		}
 

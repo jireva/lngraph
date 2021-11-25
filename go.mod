@@ -4,8 +4,8 @@ go 1.17
 
 require (
 	github.com/cheggaaa/pb v1.0.25
-	github.com/johnnadratowski/golang-neo4j-bolt-driver v0.0.0-20180812033109-f96710402a3d
 	github.com/lightningnetwork/lnd v0.6.0-beta
+	github.com/neo4j/neo4j-go-driver/v4 v4.4.0
 	google.golang.org/grpc v1.18.0
 	gopkg.in/macaroon.v2 v2.0.0
 )
@@ -20,18 +20,19 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/go-errors/errors v1.0.1 // indirect
-	github.com/golang/protobuf v1.2.0 // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v0.0.0-20170724004829-f2862b476edc // indirect
 	github.com/juju/loggo v0.0.0-20180524022052-584905176618 // indirect
 	github.com/mattn/go-colorable v0.1.1 // indirect
 	github.com/mattn/go-runewidth v0.0.3 // indirect
 	github.com/miekg/dns v0.0.0-20171125082028-79bfde677fa8 // indirect
 	github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af // indirect
-	golang.org/x/crypto v0.0.0-20190211182817-74369b46fc67 // indirect
-	golang.org/x/net v0.0.0-20190206173232-65e2d4e15006 // indirect
-	golang.org/x/sys v0.0.0-20190222072716-a9d3bda3a223 // indirect
-	golang.org/x/text v0.3.1-0.20180807135948-17ff2d5776d2 // indirect
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
+	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect
+	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
+	golang.org/x/text v0.3.6 // indirect
 	google.golang.org/genproto v0.0.0-20190201180003-4b09977fb922 // indirect
+	google.golang.org/protobuf v1.26.0 // indirect
 	gopkg.in/cheggaaa/pb.v1 v1.0.28 // indirect
 	gopkg.in/errgo.v1 v1.0.0 // indirect
 	gopkg.in/macaroon-bakery.v2 v2.0.1 // indirect
